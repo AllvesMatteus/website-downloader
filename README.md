@@ -1,3 +1,12 @@
+---
+title: Website Downloader
+emoji: 🌐
+colorFrom: black
+colorTo: gray
+sdk: docker
+app_file: app.py
+pinned: false
+---
 # 🌐 Website Downloader (CLONER_OS)
 
 Um poderoso downloader/clonador visual capaz de realizar réplicas completas de páginas web garantindo renderização de JavaScript. A ferramenta é equipada com uma nova interface visual inspirada em terminais de Engenharia Digital (*CLONER_OS*) com logs em tempo real via Server-Sent Events (SSE).
@@ -76,3 +85,4 @@ Acesse a nova interface de controle em: `http://localhost:5001`
 ## 📄 Licença
 Uso Pessoal. Não deve ser acionado contra sites com restrições severas de direitos autorais sem prévia autorização.
 # website-downloader
+
