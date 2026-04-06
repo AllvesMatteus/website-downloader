@@ -811,7 +811,7 @@
 
         const url = urlInput.value.trim();
         if (!url) {
-          addLog('❌ Erro: Por favor insira uma URL válida');
+          addLog('Erro: Por favor insira uma URL válida');
           return;
         }
 
@@ -839,7 +839,7 @@
 
           const data = await response.json();
           if (data.error) {
-            addLog(`❌ Erro: ${data.error}`);
+            addLog(`Erro: ${data.error}`);
             finishTask(false);
             return;
           }
@@ -848,7 +848,7 @@
           setupSSE(sessionId);
 
         } catch (error) {
-          addLog(`❌ Erro de conexão: ${error.message}`);
+          addLog(`Erro de conexão: ${error.message}`);
           finishTask(false);
         }
       }
@@ -856,11 +856,13 @@
       function addLog(message) {
         const logContainer = document.getElementById('logContainer');
         
-        // Remove emojis and common symbols using a safer regex
-        const cleanMessage = message.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
+        // Remove emoji and arrows from text
+        let cleanMessage = message.replace(/^>\s*/, '').trim();
         
-        // If cleanMessage is empty after stripping emojis, use the original message
-        const displayMessage = cleanMessage || message;
+        // Remove all common emoji ranges
+        cleanMessage = cleanMessage.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F191}-\u{1F251}\u{1F004}\u{1F0CF}\u{1F170}-\u{1F171}\u{1F17E}-\u{1F17F}\u{1F18E}\u{3030}\u{2B50}\u{2B55}\u{2934}-\u{2935}\u{2B05}-\u{2B07}\u{2B1B}-\u{2B1C}\u{3297}\u{3299}\u{303D}\u{00A9}\u{00AE}\u{2122}\u{23F3}\u{24C2}\u{23E9}-\u{23EF}\u{25B6}\u{23F8}-\u{23FA}]/gu, '').trim();
+        
+        if (!cleanMessage) return;
 
         // Transition previous entries to gray
         const entries = logContainer.querySelectorAll('.log-entry');
@@ -875,7 +877,7 @@
 
         const entry = document.createElement('div');
         entry.className = 'log-entry text-blue-500 font-medium pl-4';
-        entry.textContent = displayMessage;
+        entry.textContent = cleanMessage;
         logContainer.appendChild(entry);
         
         // Add current prompt at bottom
