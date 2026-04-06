@@ -7,9 +7,9 @@ sdk: docker
 app_file: app.py
 pinned: false
 ---
-# 🌐 Website Downloader (CLONER_OS)
+# 🌐 Website Downloader
 
-Um poderoso downloader/clonador visual capaz de realizar réplicas completas de páginas web garantindo renderização de JavaScript. A ferramenta é equipada com uma nova interface visual inspirada em terminais de Engenharia Digital (*CLONER_OS*) com logs em tempo real via Server-Sent Events (SSE).
+Um poderoso downloader/clonador visual capaz de realizar réplicas completas de páginas web garantindo renderização de JavaScript. A ferramenta é equipada com uma interface visual inspirada em terminais de console, com logs em tempo real via Server-Sent Events (SSE).
 
 ## ✨ Funcionalidades
 
@@ -17,7 +17,7 @@ Um poderoso downloader/clonador visual capaz de realizar réplicas completas de 
 - 🎭 **Motor Playwright:** Renderização prévia de JavaScript para sites complexos (SPAs).
 - 🖼️ **Auto-Scroller Remoto:** Rola as páginas nativamente para forçar renderização de assets "lazy-loaded" antes do download.
 - 📦 **Compactador Seguro:** Entrega um arquivo `.zip` pronto para ser aberto offline.
-- 👨‍💻 **Console Tempo-Real:** Acompanhamento visual estilo *MS-DOS* direto na interface.
+- 👨‍💻 **Console Tempo-Real:** Acompanhamento visual estilo console direto na interface.
 - 🧹 **Garbage Collector:** Rotina para limpar pastas temporárias no servidor pós-download de forma inteligente.
 - 🛡️ **Bypass de Bloqueios:** Soluciona falsos-bloqueios no offline (Next.js Hydration, Smooth Scroll bloqueante de tela como Lenis e framer-motion).
 
@@ -40,7 +40,7 @@ Recomendamos **fortemente** o **Hugging Face Spaces**. Ele garante uma máquina 
 
 Caso queira rodar localmente, utilize o Python nativo na sua máquina com um Ambiente Virtual:
 
-### 1. Criar e ativar Ambiente Virtual 
+### 1. Criar e ativar Ambiente Virtual
 ```bash
 # Windows
 python -m venv .venv
@@ -59,13 +59,13 @@ python -m pip install flask playwright requests beautifulsoup4 urllib3
 # Baixa o navegador "invisível" (Sempre necessário rodar ao menos 1 vez)
 python -m playwright install chromium
 ```
-*(Nota: O `gunicorn` se encontra no requirements.txt, mas caso você esteja utilizando o Windows pode omiti-lo das intalações manuais pelo pip, já que serve apenas em produção Linux).*
+*(Nota: O `gunicorn` se encontra no requirements.txt, mas caso você esteja utilizando o Windows pode omiti-lo das instalações manuais pelo pip, já que serve apenas em produção Linux).*
 
 ### 3. Rodar Ferramenta
 ```bash
 python app.py
 ```
-Acesse a nova interface de controle em: `http://localhost:5001`
+Acesse a interface em: `http://localhost:5001`
 
 ---
 
@@ -73,16 +73,27 @@ Acesse a nova interface de controle em: `http://localhost:5001`
 ```text
 .
 ├── app.py              # Aplicação Server (Flask) & Endpoint Logs (SSE)
-├── downloader.py       # Engine Pesado de Interceptação da Automação Web
+├── downloader.py       # Engine de Interceptação da Automação Web
 ├── Dockerfile          # Scripts Linux (Para o Hugging Face Spaces / Render)
 ├── entrypoint.sh       # Gatilho de boot (Gunicorn Production Web Server)
-├── static/             # Assets fixos novos do front-end customizado
-├── templates/          
-│   └── index.html      # Nova Interface CLONER_OS e Controller JS interativo
-└── requirements.txt    # Lista de dependências (Revisado)
+├── static/             # Assets fixos do front-end
+├── templates/
+│   └── index.html      # Interface e Controller JS interativo
+└── requirements.txt    # Lista de dependências
 ```
 
-## 📄 Licença
-Uso Pessoal. Não deve ser acionado contra sites com restrições severas de direitos autorais sem prévia autorização.
-# website-downloader
+---
 
+## 📄 Licença
+
+Uso Pessoal. Não deve ser acionado contra sites com restrições severas de direitos autorais sem prévia autorização.
+
+---
+
+## 🙏 Créditos
+
+Este projeto foi inspirado no trabalho original da **Asimov Academy**:
+
+> 🔗 [asimov-academy/Website-Downloader](https://github.com/asimov-academy/Website-Downloader)
+
+Agradecimentos ao time da Asimov Academy por criar e compartilhar o conceito e a engine base que tornou este projeto possível. Esta versão traz uma interface visual redesenhada e melhorias no fluxo de download, mantendo o respeito e reconhecimento pelo trabalho original.

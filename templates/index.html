@@ -401,7 +401,7 @@
   </script>
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>Agency_OS | Digital Engineering</title>
+  <title>Website Downloader | AllvesMatteus</title>
   <script src="/static/resource_3fa48481346f.es"></script>
   <script src="/static/iconify_654a1ef798a3.js"></script>
     <link href="/static/css2_37de661d839a.css" rel="stylesheet" />
@@ -411,7 +411,7 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* Console log styles */
+    /* Estilos do console de log */
     .log-entry {
       transition: color 0.3s ease;
     }
@@ -427,7 +427,23 @@
       50% { opacity: 0; }
     }
 
-    /* Smooth Reveal Animation */
+    /* Modal de sucesso estilo console */
+    #successModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+    }
+
+    #successModal.open {
+      display: flex;
+    }
+
+    /* Animação de entrada de conteúdo */
     .reveal {
       opacity: 0;
       transform: translateY(30px);
@@ -439,13 +455,14 @@
       transform: translateY(0);
     }
 
+    /* Grade de fundo */
     .bg-grid-pattern {
       background-image: linear-gradient(to right, #8080800a 1px, transparent 1px),
         linear-gradient(to bottom, #8080800a 1px, transparent 1px);
       background-size: 24px 24px;
     }
 
-    /* Hide Scrollbar but keep functionality */
+    /* Esconde scrollbar mantendo funcionalidade */
     .no-scrollbar::-webkit-scrollbar {
       display: none;
     }
@@ -455,7 +472,7 @@
       scrollbar-width: none;
     }
 
-    /* 3D Tilt Effect Classes */
+    /* Efeito 3D tilt */
     .tilt-card {
       transform-style: preserve-3d;
       transition: transform 0.1s ease-out;
@@ -465,7 +482,7 @@
       transform: translateZ(20px);
     }
 
-    /* Spotlight Effect */
+    /* Efeito spotlight ao passar o mouse */
     .spotlight-card {
       position: relative;
       overflow: hidden;
@@ -489,7 +506,7 @@
       opacity: 1;
     }
 
-    /* Physics Canvas Container */
+    /* Container da física interativa */
     #physics-container {
       position: relative;
       width: 100%;
@@ -499,7 +516,7 @@
       border-top: 1px solid #e5e5e5;
       border-bottom: 1px solid #e5e5e5;
     }
-
+    /* Item de física (DOM sincronizado) */
     .physics-item {
       position: absolute;
       top: 0;
@@ -635,12 +652,12 @@
       <div class="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white shadow-sm">
         <span class="iconify" data-icon="lucide:box" data-width="16" style="stroke-width: 1.5;"></span>
       </div>
-      <span class="text-sm font-semibold tracking-tight">CLONER_OS</span>
+      <span class="text-sm font-semibold tracking-tight">WEBSITE DOWNLOADER</span>
     </div>
 
     <div class="flex items-center gap-4">
       <a class="bg-black text-white text-xs px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors shadow-sm flex items-center gap-2"
-        href="https://github.com">
+        href="https://github.com/AllvesMatteus/website-downloader" target="_blank" rel="noopener">
         <span>Ver Código Fonte</span>
         <span class="iconify" data-icon="lucide:arrow-up-right" data-width="12"></span>
       </a>
@@ -722,18 +739,43 @@
             </div>
           </div>
 
-          <!-- SUCCESS STATE (hidden by default) -->
-          <div id="successState" style="display:none">
-            <div class="border border-green-200 bg-green-50 rounded-lg p-4 text-center">
-              <p class="text-green-700 text-xs font-medium mb-2">Download concluído em ZIP!</p>
-              <a href="#" id="downloadLink" class="text-green-800 font-bold underline text-xs">Clique aqui se não iniciar automaticamente</a>
-            </div>
-          </div>
-
         </div>
       </div>
     </div>
   </section>
+
+  <!-- Modal de download concluído (estilo console) -->
+  <div id="successModal">
+    <div class="bg-white rounded-xl border border-gray-200 shadow-2xl overflow-hidden w-full max-w-md mx-4">
+      <div class="flex items-center gap-1.5 px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+        <div class="w-3 h-3 rounded-full bg-red-400"></div>
+        <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
+        <div class="w-3 h-3 rounded-full bg-green-400"></div>
+        <div class="ml-auto text-[10px] text-gray-400 font-mono">resultado.sh</div>
+      </div>
+      <div class="p-6 font-mono text-xs">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="text-green-600 font-bold text-sm">➜</span>
+          <span class="text-gray-800 font-semibold">process exited with code 0</span>
+        </div>
+        <div class="space-y-1 mb-6">
+          <div class="text-gray-400 pl-4">Compactação concluída com sucesso.</div>
+          <div class="text-blue-500 pl-4 log-cursor">Arquivo ZIP pronto para download.</div>
+        </div>
+        <div class="flex gap-3">
+          <a id="downloadLink" href="#"
+            class="flex-1 bg-black text-white text-xs py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-800 transition font-medium cursor-pointer">
+            <span class="iconify" data-icon="lucide:download" data-width="12"></span>
+            Baixar ZIP
+          </a>
+          <button onclick="fecharModal()"
+            class="flex-1 bg-gray-100 text-gray-700 text-xs py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-200 transition font-medium cursor-pointer">
+            Baixar outro site
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Footer -->
   <footer class="w-full bg-transparent border-t border-gray-200 mt-auto absolute bottom-0 left-0 right-0 z-20 backdrop-blur-sm">
@@ -741,16 +783,11 @@
       <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
         <div class="flex items-center gap-2">
           <div class="w-6 h-6 bg-black rounded flex items-center justify-center text-white">
-            <span class="iconify" data-icon="lucide:check-circle" data-width="12"></span>
+            <span class="iconify" data-icon="lucide:box" data-width="12"></span>
           </div>
-          <span class="text-xs font-bold tracking-tight text-gray-800">C L O N E R . O S</span>
+          <a href="https://github.com/AllvesMatteus" target="_blank" rel="noopener"
+            class="text-xs font-bold tracking-tight text-gray-800 hover:text-black transition-colors">AllvesMatteus</a>
         </div>
-        
-        <div class="flex items-center gap-2 text-[10px] text-gray-500">
-          <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_5px_#22c55e]"></span>
-          <span>Engine Playwright ready</span>
-        </div>
-        
         <div class="text-[10px] text-gray-400 font-mono">
           Powered by Python.
         </div>
@@ -760,41 +797,32 @@
   
   <!-- Scripts -->
     <script>
-      // --- 1. Reveal Animation Observer ---
+      // --- Animação de entrada dos elementos ---
       document.addEventListener('DOMContentLoaded', () => {
         const observer = new IntersectionObserver((entries) => {
           entries.forEach(entry => {
-            if (entry.isIntersecting) {
-              entry.target.classList.add('active');
-            }
+            if (entry.isIntersecting) entry.target.classList.add('active');
           });
         }, { threshold: 0.1 });
         document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
       });
 
-      // --- 2. 3D Tilt & Spotlight Logic ---
+      // --- Efeito tilt e spotlight ---
       function initTilt() {
         document.addEventListener('mousemove', (e) => {
-          // Spotlight Update
           document.querySelectorAll('.spotlight-card').forEach(card => {
             const rect = card.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            card.style.setProperty('--mouse-x', `${x}px`);
-            card.style.setProperty('--mouse-y', `${y}px`);
+            card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+            card.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
           });
 
-          // Tilt Update
           document.querySelectorAll('.tilt-card').forEach(card => {
             const rect = card.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
-
             if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
-              const centerX = rect.width / 2;
-              const centerY = rect.height / 2;
-              const rotateX = ((y - centerY) / centerY) * -5; // Max 5deg
-              const rotateY = ((x - centerX) / centerX) * 5;
+              const rotateX = ((y - rect.height / 2) / (rect.height / 2)) * -5;
+              const rotateY = ((x - rect.width / 2) / (rect.width / 2)) * 5;
               card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
             } else {
               card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg)`;
@@ -802,7 +830,6 @@
           });
         });
 
-        // Reset on mouse leave
         document.querySelectorAll('.tilt-card').forEach(card => {
           card.addEventListener('mouseleave', () => {
             card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg)`;
@@ -811,12 +838,26 @@
       }
       initTilt();
 
-      // --- 3. Downloader Logic ---
-      function showState(state) {
-        // state: 'input' | 'log' | 'success'
-        document.getElementById('inputState').style.display  = state === 'input'   ? 'block' : 'none';
-        document.getElementById('logState').style.display    = state === 'log'     ? 'block' : 'none';
-        document.getElementById('successState').style.display = state === 'success' ? 'block' : 'none';
+      // --- Downloader ---
+      const MAX_LINHAS = 8;
+
+      function mostrarEstado(estado) {
+        document.getElementById('inputState').style.display = estado === 'input' ? 'block' : 'none';
+        document.getElementById('logState').style.display   = estado === 'log'   ? 'block' : 'none';
+      }
+
+      function abrirModal(sessionId) {
+        const link = document.getElementById('downloadLink');
+        link.href = '/download-file/' + sessionId;
+        document.getElementById('successModal').classList.add('open');
+        setTimeout(() => { window.location.href = link.href; }, 1500);
+      }
+
+      function fecharModal() {
+        document.getElementById('successModal').classList.remove('open');
+        document.getElementById('logPrompt').style.display = '';
+        document.getElementById('urlInput').value = '';
+        mostrarEstado('input');
       }
 
       async function startDownload() {
@@ -829,9 +870,8 @@
           return;
         }
 
-        // Switch to log state
         document.getElementById('logLines').innerHTML = '';
-        showState('log');
+        mostrarEstado('log');
 
         try {
           const response = await fetch('/start-download', {
@@ -843,7 +883,7 @@
           const data = await response.json();
           if (data.error) {
             addLog('Erro: ' + data.error);
-            setTimeout(() => showState('input'), 3000);
+            setTimeout(() => mostrarEstado('input'), 3000);
             return;
           }
 
@@ -851,7 +891,7 @@
 
         } catch (error) {
           addLog('Erro de conexao: ' + error.message);
-          setTimeout(() => showState('input'), 3000);
+          setTimeout(() => mostrarEstado('input'), 3000);
         }
       }
 
@@ -859,7 +899,6 @@
         const logLines = document.getElementById('logLines');
         const logPrompt = document.getElementById('logPrompt');
 
-        // Strip emojis, preserve text
         const clean = message
           .replace(/\p{Emoji_Presentation}/gu, '')
           .replace(/[\u{1F300}-\u{1FFFF}]/gu, '')
@@ -868,75 +907,58 @@
 
         if (!clean) return;
 
-        // Turn all previous entries grey
-        logLines.querySelectorAll('.log-entry').forEach(el => {
+        // Limita o número de linhas visíveis
+        const linhas = logLines.querySelectorAll('.log-entry');
+        if (linhas.length >= MAX_LINHAS) {
+          linhas[0].remove();
+        }
+
+        linhas.forEach(el => {
           el.classList.remove('text-blue-500', 'log-cursor');
           el.classList.add('text-gray-400');
         });
 
-        // Insert new blue active line
         const line = document.createElement('div');
         line.className = 'log-entry text-blue-500 pl-4 log-cursor';
         line.textContent = clean;
         logLines.appendChild(line);
 
-        // Scroll both logLines and its parent
         logLines.scrollTop = logLines.scrollHeight;
         logPrompt.scrollIntoView({ block: 'nearest' });
       }
 
       function setupSSE(sessionId) {
         const es = new EventSource('/stream/' + sessionId);
-
         es.onmessage = (e) => addLog(e.data);
-
         es.addEventListener('done', (e) => {
           es.close();
           finishTask(e.data === 'complete', sessionId);
         });
-
         es.onerror = () => es.close();
       }
 
       function finishTask(success, sessionId) {
         const logLines = document.getElementById('logLines');
-
-        // Remove cursor from last entry
         logLines.querySelectorAll('.log-entry').forEach(el => el.classList.remove('log-cursor'));
-
-        // Hide the blinking prompt
         document.getElementById('logPrompt').style.display = 'none';
 
         if (success && sessionId) {
-          const link = document.getElementById('downloadLink');
-          link.href = '/download-file/' + sessionId;
-          showState('success');
-
-          // Auto-trigger download
-          setTimeout(() => { window.location.href = link.href; }, 1500);
-
-          // After 8s restore input state so user can download another
-          setTimeout(() => {
-            document.getElementById('logPrompt').style.display = '';
-            document.getElementById('urlInput').value = '';
-            showState('input');
-          }, 8000);
+          abrirModal(sessionId);
         } else {
-          // On error, show input again after a moment
           setTimeout(() => {
             document.getElementById('logPrompt').style.display = '';
-            showState('input');
+            mostrarEstado('input');
           }, 3000);
         }
       }
 
-      // --- 4. Slider Control ---
+      // --- Controle de sliders ---
       window.scrollContainer = (id, amount) => {
         const container = document.getElementById(id);
         container.scrollBy({ left: amount, behavior: 'smooth' });
       }
 
-      // --- 5. Matter.js Physics Implementation ---
+      // --- Física interativa (Matter.js) ---
       window.onload = function () {
         const Engine = Matter.Engine,
           Render = Matter.Render,
@@ -950,53 +972,45 @@
         const width = container.offsetWidth;
         const height = container.offsetHeight;
 
-        // Create engine
         const engine = Engine.create();
         const world = engine.world;
-
-        // Create invisible renderer (we only need the engine, we render with DOM)
-        // But we need mouse interaction, so we set up a basic runner
         const runner = Runner.create();
         Runner.run(runner, engine);
 
-        // Walls
+        // Paredes invisíveis
         const wallOptions = { isStatic: true, render: { visible: false } };
         const ground = Bodies.rectangle(width / 2, height + 30, width, 60, wallOptions);
         const leftWall = Bodies.rectangle(-30, height / 2, 60, height, wallOptions);
         const rightWall = Bodies.rectangle(width + 30, height / 2, 60, height, wallOptions);
         Composite.add(world, [ground, leftWall, rightWall]);
 
-        // DOM Bodies Mapping
+        // Mapeamento dos elementos DOM
         const domElements = document.querySelectorAll('#skill-templates .skill-card');
         const bodies = [];
         const elements = [];
 
-        domElements.forEach((template, index) => {
-          // Clone the DOM element
+        domElements.forEach((template) => {
           const el = template.cloneNode(true);
           el.classList.add('physics-item');
           container.appendChild(el);
           elements.push(el);
 
-          // Get dimensions (approximate)
-          const elWidth = 140; // Approx based on content
+          const elWidth = 140;
           const elHeight = 40;
-
-          // Create random position
           const x = Math.random() * (width - 100) + 50;
-          const y = -Math.random() * 500 - 50; // Start above screen
+          const y = -Math.random() * 500 - 50;
 
           const body = Bodies.rectangle(x, y, elWidth, elHeight, {
-            restitution: 0.5, // Bounciness
+            restitution: 0.5,
             friction: 0.1,
-            chamfer: { radius: 5 } // Rounded corners physics
+            chamfer: { radius: 5 }
           });
           bodies.push(body);
         });
 
         Composite.add(world, bodies);
 
-        // Mouse Control (Invisible but active)
+        // Controle de mouse
         const mouse = Mouse.create(container);
         const mouseConstraint = MouseConstraint.create(engine, {
           mouse: mouse,
@@ -1007,28 +1021,24 @@
         });
         Composite.add(world, mouseConstraint);
 
-        // Prevent page scrolling when using mouse inside canvas
+        // Remove scroll do mouse dentro do container
         mouse.element.removeEventListener("mousewheel", mouse.mousewheel);
         mouse.element.removeEventListener("DOMMouseScroll", mouse.mousewheel);
 
-        // Sync Loop
+        // Loop de sincronização DOM ↔ física
         function update() {
           bodies.forEach((body, index) => {
             const el = elements[index];
             const { x, y } = body.position;
             const rotation = body.angle;
-
-            // Apply transforms
             el.style.transform = `translate(${x - 70}px, ${y - 20}px) rotate(${rotation}rad)`;
-            // Note: -70 and -20 are roughly half width/height to center the div on the body
           });
           requestAnimationFrame(update);
         }
         update();
 
-        // Resize Handler
+        // Reposiciona paredes ao redimensionar
         window.addEventListener('resize', () => {
-          // Simple reset for demo purposes
           Matter.Body.setPosition(ground, { x: container.offsetWidth / 2, y: container.offsetHeight + 30 });
           Matter.Body.setPosition(rightWall, { x: container.offsetWidth + 30, y: container.offsetHeight / 2 });
         });
