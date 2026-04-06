@@ -1,7 +1,7 @@
 ---
 title: Website Downloader
 emoji: 🌐
-colorFrom: black
+colorFrom: indigo
 colorTo: gray
 sdk: docker
 app_file: app.py
