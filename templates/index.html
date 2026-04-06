@@ -648,13 +648,13 @@
       </p>
       <!-- 3D Tilt Terminal -->
       <div
-        class="mt-12 w-full max-w-xl bg-white/90 backdrop-blur-md rounded-xl border border-gray-200 shadow-xl overflow-hidden text-left mx-auto tilt-card group"
+        class="mt-12 w-full max-w-xl bg-white/90 backdrop-blur-md rounded-xl border border-gray-200 shadow-xl overflow-hidden text-left mx-auto group"
         id="hero-terminal">
         <div class="flex items-center gap-1.5 px-3 py-2 border-b border-gray-100 bg-gray-50/50">
           <div class="w-2.5 h-2.5 rounded-full bg-red-400/80"></div>
           <div class="w-2.5 h-2.5 rounded-full bg-yellow-400/80"></div>
           <div class="w-2.5 h-2.5 rounded-full bg-green-400/80"></div>
-          <div class="ml-auto text-[10px] text-gray-400 font-mono">downloader.sh</div>
+          <div class="ml-auto text-[10px] text-gray-400 font-mono">deploy.sh</div>
         </div>
         <div class="p-6 font-mono text-sm space-y-4 relative z-10">
           <div class="flex items-center gap-2">
@@ -677,18 +677,18 @@
           </button>
 
           <div
-            class="log-container mt-4 bg-black text-[#00ff00] rounded-lg p-5 max-h-[300px] overflow-y-auto hidden text-xs font-mono border border-gray-800 shadow-[inset_0_0_20px_rgba(0,255,0,0.02)]"
+            class="log-container mt-4 bg-white/50 backdrop-blur-sm rounded-lg p-6 max-h-[300px] overflow-y-auto hidden text-xs font-mono border border-gray-100 shadow-inner space-y-2"
             id="logContainer">
             <style>
               .log-entry {
-                margin-bottom: 6px;
-                text-shadow: 0 0 5px rgba(0, 255, 0, 0.4);
+                transition: color 0.3s ease;
               }
 
               .log-entry:last-child::after {
                 content: '\2588';
                 margin-left: 6px;
                 animation: blink 1s step-end infinite;
+                color: #000;
               }
 
               @keyframes blink {
@@ -817,12 +817,18 @@
 
         // Reset UI
         logContainer.innerHTML = '';
-        logContainer.style.display = 'block';
+        logContainer.classList.add('active');
         successMessage.classList.remove('active');
-        downloadBtn.disabled = true;
-        downloadBtn.classList.add('opacity-50', 'cursor-not-allowed');
-        spinner.style.display = 'inline-block';
-        btnText.textContent = 'Processando...';
+        
+        // Hide form for immersive console feel
+        urlInput.parentElement.classList.add('hidden');
+        downloadBtn.classList.add('hidden');
+
+        // Initial command log
+        const initialCommand = document.createElement('div');
+        initialCommand.className = 'flex items-center gap-2 mb-4';
+        initialCommand.innerHTML = `<span class="text-green-600 font-bold">➜</span> <span class="text-gray-700 font-bold">npm run deploy --production</span>`;
+        logContainer.appendChild(initialCommand);
 
         try {
           const response = await fetch('/start-download', {
@@ -849,10 +855,35 @@
 
       function addLog(message) {
         const logContainer = document.getElementById('logContainer');
+        
+        // Remove emojis and common symbols
+        const cleanMessage = message.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F191}-\u{1F251}\u{1F004}\u{1F0CF}\u{1F170}-\u{1F171}\u{1F17E}-\u{1F17F}\u{1F18E}\u{3030}\u{2B50}\u{2B55}\u{2934}-\u{2935}\u{2B05}-\u{2B07}\u{2B1B}-\u{2B1C}\u{3297}\u{3299}\u{303D}\u{00A9}\u{00AE}\u{2122}\u{23F3}\u{24C2}\u{23E9}-\u{23EF}\u{25B6}\u{23F8}-\u{23FA}]/gu, '').trim();
+        
+        if (!cleanMessage) return;
+
+        // Transition previous entries to gray
+        const entries = logContainer.querySelectorAll('.log-entry');
+        entries.forEach(el => {
+          el.classList.remove('text-blue-500', 'font-medium');
+          el.classList.add('text-gray-400');
+        });
+
         const entry = document.createElement('div');
-        entry.className = 'log-entry';
-        entry.textContent = `> ${message}`;
+        entry.className = 'log-entry text-blue-500 font-medium pl-4';
+        entry.textContent = cleanMessage;
         logContainer.appendChild(entry);
+        
+        // Ensure prompt is always at bottom or remove previous prompt before adding new log
+        const oldPrompt = document.getElementById('log-prompt');
+        if (oldPrompt) oldPrompt.remove();
+        
+        const prompt = document.createElement('div');
+        prompt.id = 'log-prompt';
+        prompt.className = 'flex items-center gap-2 mt-4 pl-0';
+        prompt.innerHTML = `<span class="text-green-600 font-bold">➜</span> <span class="w-2 h-4 bg-gray-800 animate-pulse"></span>`;
+        logContainer.appendChild(prompt);
+        
+        // Scroll to bottom
         logContainer.scrollTop = logContainer.scrollHeight;
       }
 
@@ -879,12 +910,17 @@
       }
 
       function finishTask(success, sessionId = null) {
+        const urlInput = document.getElementById('urlInput');
         const downloadBtn = document.getElementById('downloadBtn');
         const btnText = document.getElementById('btnText');
         const spinner = document.getElementById('spinner');
         const successMessage = document.getElementById('successMessage');
         const downloadLink = document.getElementById('downloadLink');
 
+        // Show form back
+        urlInput.parentElement.classList.remove('hidden');
+        downloadBtn.classList.remove('hidden');
+        
         downloadBtn.disabled = false;
         downloadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         spinner.style.display = 'none';
