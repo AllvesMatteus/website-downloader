@@ -411,6 +411,22 @@
       -webkit-font-smoothing: antialiased;
     }
 
+    /* Console log styles */
+    .log-entry {
+      transition: color 0.3s ease;
+    }
+
+    .log-cursor::after {
+      content: '\2588';
+      margin-left: 4px;
+      animation: logBlink 1s step-end infinite;
+      color: #1d4ed8;
+    }
+
+    @keyframes logBlink {
+      50% { opacity: 0; }
+    }
+
     /* Smooth Reveal Animation */
     .reveal {
       opacity: 0;
@@ -677,34 +693,9 @@
           </button>
 
           <div
-            class="log-container mt-4 bg-white/50 backdrop-blur-sm rounded-lg p-6 max-h-[300px] overflow-y-auto hidden text-xs font-mono border border-gray-100 shadow-inner space-y-2"
-            id="logContainer">
-            <style>
-              .log-entry {
-                transition: color 0.3s ease;
-              }
-
-              .log-entry:last-child::after {
-                content: '\2588';
-                margin-left: 6px;
-                animation: blink 1s step-end infinite;
-                color: #000;
-              }
-
-              @keyframes blink {
-                50% {
-                  opacity: 0;
-                }
-              }
-
-              #logContainer.active {
-                display: block;
-              }
-
-              #successMessage.active {
-                display: block;
-              }
-            </style>
+            class="log-container mt-4 bg-white/50 backdrop-blur-sm rounded-lg p-6 max-h-[300px] overflow-y-auto text-xs font-mono border border-gray-100 shadow-inner space-y-2"
+            id="logContainer"
+            style="display:none">
           </div>
 
           <div
@@ -811,23 +802,23 @@
 
         const url = urlInput.value.trim();
         if (!url) {
-          addLog('Erro: Por favor insira uma URL válida');
+          addLog('❌ Erro: Por favor insira uma URL válida');
           return;
         }
 
         // Reset UI
         logContainer.innerHTML = '';
-        logContainer.classList.add('active');
-        successMessage.classList.remove('active');
+        logContainer.style.display = 'block';
+        successMessage.style.display = 'none';
         
         // Hide form for immersive console feel
-        urlInput.parentElement.classList.add('hidden');
-        downloadBtn.classList.add('hidden');
+        urlInput.parentElement.style.display = 'none';
+        downloadBtn.style.display = 'none';
 
         // Initial command log
         const initialCommand = document.createElement('div');
-        initialCommand.className = 'flex items-center gap-2 mb-4';
-        initialCommand.innerHTML = `<span class="text-green-600 font-bold">➜</span> <span class="text-gray-700 font-bold">npm run deploy --production</span>`;
+        initialCommand.className = 'flex items-center gap-2 mb-3';
+        initialCommand.innerHTML = `<span class="text-green-600 font-bold">➜</span> <span class="text-gray-800 font-bold">npm run deploy --production</span>`;
         logContainer.appendChild(initialCommand);
 
         try {
@@ -839,7 +830,7 @@
 
           const data = await response.json();
           if (data.error) {
-            addLog(`Erro: ${data.error}`);
+            addLog(`❌ Erro: ${data.error}`);
             finishTask(false);
             return;
           }
@@ -848,7 +839,7 @@
           setupSSE(sessionId);
 
         } catch (error) {
-          addLog(`Erro de conexão: ${error.message}`);
+          addLog(`❌ Erro de conexão: ${error.message}`);
           finishTask(false);
         }
       }
@@ -856,38 +847,38 @@
       function addLog(message) {
         const logContainer = document.getElementById('logContainer');
         
-        // Remove emoji and arrows from text
-        let cleanMessage = message.replace(/^>\s*/, '').trim();
-        
-        // Remove all common emoji ranges
-        cleanMessage = cleanMessage.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F191}-\u{1F251}\u{1F004}\u{1F0CF}\u{1F170}-\u{1F171}\u{1F17E}-\u{1F17F}\u{1F18E}\u{3030}\u{2B50}\u{2B55}\u{2934}-\u{2935}\u{2B05}-\u{2B07}\u{2B1B}-\u{2B1C}\u{3297}\u{3299}\u{303D}\u{00A9}\u{00AE}\u{2122}\u{23F3}\u{24C2}\u{23E9}-\u{23EF}\u{25B6}\u{23F8}-\u{23FA}]/gu, '').trim();
+        // Strip emoji characters only, preserve all text
+        const cleanMessage = message
+          .replace(/\p{Emoji_Presentation}/gu, '')
+          .replace(/[\u{1F300}-\u{1FFFF}]/gu, '')
+          .replace(/^[\s\-_]+/, '')  // Remove leading dashes/underscores left after emoji removal
+          .trim();
         
         if (!cleanMessage) return;
 
-        // Transition previous entries to gray
-        const entries = logContainer.querySelectorAll('.log-entry');
-        entries.forEach(el => {
-          el.classList.remove('text-blue-500', 'font-medium');
+        // Transition all previous log-entry divs to gray
+        logContainer.querySelectorAll('.log-entry').forEach(el => {
+          el.classList.remove('text-blue-500', 'log-cursor');
           el.classList.add('text-gray-400');
         });
 
-        // Remove old prompt
+        // Remove old cursor prompt
         const oldPrompt = document.getElementById('log-prompt');
         if (oldPrompt) oldPrompt.remove();
 
+        // Add new line as blue (active)
         const entry = document.createElement('div');
-        entry.className = 'log-entry text-blue-500 font-medium pl-4';
+        entry.className = 'log-entry text-blue-500 pl-4 log-cursor';
         entry.textContent = cleanMessage;
         logContainer.appendChild(entry);
         
-        // Add current prompt at bottom
+        // Add prompt at end
         const prompt = document.createElement('div');
         prompt.id = 'log-prompt';
-        prompt.className = 'flex items-center gap-2 mt-2';
-        prompt.innerHTML = `<span class="text-green-600 font-bold">➜</span> <span class="w-2 h-4 bg-gray-800 animate-pulse"></span>`;
+        prompt.className = 'flex items-center gap-1.5 mt-3';
+        prompt.innerHTML = `<span class="text-green-600 font-bold">➜</span><span class="inline-block w-2 h-3.5 bg-gray-700 animate-pulse ml-1"></span>`;
         logContainer.appendChild(prompt);
         
-        // Scroll to bottom
         logContainer.scrollTop = logContainer.scrollHeight;
       }
 
@@ -916,22 +907,30 @@
       function finishTask(success, sessionId = null) {
         const urlInput = document.getElementById('urlInput');
         const downloadBtn = document.getElementById('downloadBtn');
-        const btnText = document.getElementById('btnText');
-        const spinner = document.getElementById('spinner');
         const successMessage = document.getElementById('successMessage');
         const downloadLink = document.getElementById('downloadLink');
+        const logContainer = document.getElementById('logContainer');
 
-        // Show form back
-        urlInput.parentElement.classList.remove('hidden');
-        downloadBtn.classList.remove('hidden');
-        
-        downloadBtn.disabled = false;
-        downloadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-        spinner.style.display = 'none';
-        btnText.textContent = 'Baixar site completo';
+        // Remove cursor prompt at end
+        const oldPrompt = document.getElementById('log-prompt');
+        if (oldPrompt) oldPrompt.remove();
+
+        // Mark last entry as done (no cursor)
+        const lastEntry = logContainer.querySelector('.log-entry:last-child');
+        if (lastEntry) lastEntry.classList.remove('log-cursor');
+
+        // Add final ➜ cursor line
+        const donePrompt = document.createElement('div');
+        donePrompt.className = 'flex items-center gap-1.5 mt-3';
+        donePrompt.innerHTML = `<span class="text-green-600 font-bold">➜</span><span class="inline-block w-2 h-3.5 bg-black animate-pulse ml-1"></span>`;
+        logContainer.appendChild(donePrompt);
+
+        // Restore form
+        urlInput.parentElement.style.display = '';
+        downloadBtn.style.display = '';
 
         if (success && sessionId) {
-          successMessage.classList.add('active');
+          successMessage.style.display = 'block';
           downloadLink.href = `/download-file/${sessionId}`;
           // Auto-trigger download after a small delay
           setTimeout(() => {
