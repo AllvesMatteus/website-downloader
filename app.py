@@ -6,7 +6,11 @@ import queue
 import threading
 import time
 import glob
+import mimetypes
 from downloader import WebsiteDownloader, zip_directory, get_site_name
+
+# Ensure .es files (ECMAScript modules) are served as JavaScript
+mimetypes.add_type('application/javascript', '.es')
 
 app = Flask(__name__)
 
