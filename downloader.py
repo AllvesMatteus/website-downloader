@@ -23,10 +23,22 @@ class WebsiteDownloader:
         self.base_url = url
         self.session = None  # Will be set with cookies from browser
         self.log_callback = log_callback or (lambda msg: print(msg))
-        
+
+        self.subdirs = {
+            'js':    os.path.join(self.assets_dir, 'js'),
+            'css':   os.path.join(self.assets_dir, 'css'),
+            'img':   os.path.join(self.assets_dir, 'img'),
+            'fonts': os.path.join(self.assets_dir, 'fonts'),
+            'media': os.path.join(self.assets_dir, 'media'),
+            'data':  os.path.join(self.assets_dir, 'data'),
+            'misc':  os.path.join(self.assets_dir, 'misc'),
+        }
+
         if os.path.exists(output_dir):
             shutil.rmtree(output_dir)
         os.makedirs(self.assets_dir)
+        for subdir_path in self.subdirs.values():
+            os.makedirs(subdir_path, exist_ok=True)
 
     def log(self, message):
         """Send log message to callback"""
@@ -49,35 +61,125 @@ class WebsiteDownloader:
         
         return ''
 
+    def _get_asset_subdir(self, url, content_type=''):
+        """Return the assets subdirectory name for a given resource type."""
+        ext  = self._get_extension(url, content_type).lower().lstrip('.')
+        mime = content_type.split(';')[0].strip().lower() if content_type else ''
+
+        if ext in ('js', 'mjs', 'cjs') or 'javascript' in mime:
+            return 'js'
+        if ext == 'css' or mime == 'text/css':
+            return 'css'
+        if ext in ('jpg', 'jpeg', 'jfif', 'pjpeg', 'pjp',
+                   'png', 'apng', 'gif', 'webp',
+                   'svg', 'svgz',
+                   'ico', 'cur',
+                   'bmp', 'avif', 'tiff', 'tif') \
+                or mime.startswith('image/'):
+            return 'img'
+        if ext in ('woff', 'woff2', 'ttf', 'otf', 'eot') or 'font' in mime:
+            return 'fonts'
+        if ext in ('mp4', 'm4v', 'webm', 'ogv', 'avi', 'mov', 'mkv',
+                   'mp3', 'm4a', 'wav', 'flac', 'aac', 'oga', 'opus') \
+                or mime.startswith(('video/', 'audio/')):
+            return 'media'
+        if ext in ('json', 'xml', 'csv', 'yaml', 'yml', 'graphql', 'gql') \
+                or mime in ('application/json', 'application/xml',
+                            'text/xml', 'text/csv', 'application/graphql'):
+            return 'data'
+        return 'misc'
+
     def _generate_filename(self, url, content_type=''):
         """Generate a unique filename for a resource"""
         ext = self._get_extension(url, content_type)
         url_hash = hashlib.md5(url.encode()).hexdigest()[:12]
-        
+
         parsed = urlparse(url)
         name = os.path.basename(parsed.path)
         if name:
             name = re.sub(r'[^a-zA-Z0-9_-]', '_', name.split('.')[0])[:30]
         else:
             name = 'resource'
-        
+
         return f"{name}_{url_hash}{ext}"
 
+    def _generate_font_filename(self, url, content_type=''):
+        """Generate a human-readable filename for a font file.
+
+        Strategy (in order):
+          1. Known CDN patterns  — extract font family from URL structure.
+          2. Self-hosted basename — use if it looks like a real name (not a hash).
+          3. Fallback            — 'font_{hash}.{ext}'.
+        """
+        ext = self._get_extension(url, content_type).lower()
+        if not ext:
+            ext = '.woff2'
+
+        url_hash = hashlib.md5(url.encode()).hexdigest()[:8]
+        parsed   = urlparse(url)
+        path     = parsed.path
+        hostname = parsed.netloc.lower()
+
+        # ─ Google Fonts (fonts.gstatic.com) ─────────────────────────────────────
+        # URL path: /s/{family-name}/v{n}/{hash}.woff2
+        if 'gstatic.com' in hostname:
+            m = re.search(r'/s/([a-z0-9]+(?:[_-][a-z0-9]+)*)/v', path, re.IGNORECASE)
+            if m:
+                family = m.group(1).replace('_', '-')
+                return f"{family}_{url_hash}{ext}"
+
+        # ─ Bunny Fonts (fonts.bunny.net) ───────────────────────────────────────
+        # URL path: /{family}/files/{family}-{subset}-{weight}-{style}.woff2
+        if 'bunny.net' in hostname:
+            m = re.search(r'/([a-z0-9-]+)/files/', path, re.IGNORECASE)
+            if m:
+                family = m.group(1)
+                basename_no_ext = os.path.splitext(os.path.basename(path))[0]
+                clean = re.sub(r'[^a-zA-Z0-9_-]', '-', basename_no_ext)[:60]
+                return f"{clean}_{url_hash}{ext}"
+
+        # ─ Adobe Typekit / fonts.adobe.com ───────────────────────────────────
+        if 'typekit.net' in hostname or 'adobe.com' in hostname:
+            m = re.search(r'/af/([a-z0-9]+)', path, re.IGNORECASE)
+            name = m.group(1) if m else 'typekit'
+            return f"adobe-{name}_{url_hash}{ext}"
+
+        # ─ Self-hosted / other CDNs: use the basename if it looks like a real name ─
+        # A real font name has at least 3 consecutive letters and is not too long.
+        # Hashes (e.g. Google Fonts file hashes) are typically 30+ chars of mixed case.
+        basename_no_ext = os.path.splitext(os.path.basename(path))[0]
+        if basename_no_ext:
+            clean = re.sub(r'[^a-zA-Z0-9_-]', '-', basename_no_ext)
+            has_letters   = bool(re.search(r'[a-zA-Z]{3,}', clean))
+            looks_like_hash = len(clean) > 35 and not re.search(r'[-_]', clean)
+            if has_letters and not looks_like_hash:
+                return f"{clean[:55]}_{url_hash}{ext}"
+
+        # ─ Fallback ───────────────────────────────────────────────────────────────────
+        return f"font_{url_hash}{ext}"
+
     def _save_resource(self, url, content, content_type=''):
-        """Save a resource to disk and return relative path"""
+        """Save a resource to the appropriate typed subdirectory and return its relative path."""
         if url in self.resource_cache:
             return self.resource_cache[url]
-        
+
         if not content:
             return None
-            
-        filename = self._generate_filename(url, content_type)
-        filepath = os.path.join(self.assets_dir, filename)
-        
+
+        subdir_name = self._get_asset_subdir(url, content_type)
+        subdir_path = self.subdirs[subdir_name]
+
+        filename = (
+            self._generate_font_filename(url, content_type)
+            if subdir_name == 'fonts'
+            else self._generate_filename(url, content_type)
+        )
+        filepath = os.path.join(subdir_path, filename)
+
         with open(filepath, 'wb') as f:
             f.write(content if isinstance(content, bytes) else content.encode('utf-8'))
-        
-        rel_path = f"assets/{filename}"
+
+        rel_path = f"assets/{subdir_name}/{filename}"
         self.resource_cache[url] = rel_path
         return rel_path
 
@@ -125,29 +227,33 @@ class WebsiteDownloader:
         # Return original if all fails
         return url
 
-    def _rewrite_css_urls(self, css_content, css_url):
-        """Rewrite all url() references in CSS content"""
+    def _rewrite_css_urls(self, css_content, css_url, css_local_path=None):
+        """Rewrite all url() references in CSS content.
+
+        css_local_path: relative path of the CSS file from output_dir root
+                        (e.g. 'assets/css/main.css'). Pass '' for inline styles.
+        """
+        css_dir = os.path.dirname(css_local_path) if css_local_path else ''
+
         def replacer(match):
             full_match = match.group(0)
             url_content = match.group(1).strip()
-            
-            # Remove quotes if present
+
             if url_content.startswith(("'", '"')) and url_content.endswith(("'", '"')):
                 url_content = url_content[1:-1]
-            
+
             if not url_content or url_content.startswith('data:'):
                 return full_match
-            
-            # Make absolute URL relative to CSS file
+
             abs_url = urljoin(css_url, url_content)
             local_path = self._get_resource(abs_url)
-            
+
             if local_path and local_path.startswith('assets/'):
-                # CSS is in assets/, so reference sibling files directly
-                return f'url("{os.path.basename(local_path)}")'
-            
+                rel = os.path.relpath(local_path, css_dir).replace(os.sep, '/') if css_dir else local_path
+                return f'url("{rel}")'
+
             return full_match
-        
+
         return re.sub(r'url\(\s*([^)]+)\s*\)', replacer, css_content)
 
     def _detect_nextjs(self, soup):
@@ -509,28 +615,29 @@ class WebsiteDownloader:
             
             self.log(f"🌐 Carregando {self.url}...")
             try:
-                # Try with a shorter timeout and less strict wait condition
                 page.goto(self.url, wait_until='load', timeout=60000)
                 self.log("✓ Página carregada (load)")
-                # Wait a bit more for additional resources
-                page.wait_for_timeout(3000)
-                self.log("✓ Recursos adicionais carregados")
+                try:
+                    page.wait_for_load_state('networkidle', timeout=5000)
+                    self.log("✓ Rede ociosa — recursos adicionais prontos")
+                except Exception:
+                    self.log("⚠️ Rede ainda ativa após 5 s, continuando mesmo assim...")
             except Exception as e:
                 self.log(f"⚠️ Aviso de carregamento: {str(e)[:100]}")
                 self.log("⚠️ Tentando continuar mesmo assim...")
-            
+
             self.base_url = page.url
-            
-            # Wait for dynamic content
-            page.wait_for_timeout(2000)
-            
+
             # Check for iframe content (site builders like Aura, Webflow, etc.)
             iframe_content, is_iframe = self._extract_iframe_content(page)
-            
+
             if not is_iframe:
                 self.log("📜 Rolando página para carregar conteúdo lazy...")
                 self._scroll_page(page)
-                page.wait_for_timeout(3000)
+                try:
+                    page.wait_for_load_state('networkidle', timeout=3000)
+                except Exception:
+                    pass
             
             # Get cookies from browser for fallback downloads
             cookies = context.cookies()
@@ -601,7 +708,7 @@ class WebsiteDownloader:
                     pass
             
             if css_content:
-                css_content = self._rewrite_css_urls(css_content, abs_url)
+                css_content = self._rewrite_css_urls(css_content, abs_url, css_local_path='assets/css/style.css')
                 local_path = self._save_resource(abs_url, css_content.encode('utf-8'), 'text/css')
                 if local_path:
                     link['href'] = local_path
@@ -610,7 +717,7 @@ class WebsiteDownloader:
         self.log("✨ Processando estilos inline...")
         for style_tag in soup.find_all('style'):
             if style_tag.string:
-                style_tag.string = self._rewrite_css_urls(style_tag.string, self.base_url)
+                style_tag.string = self._rewrite_css_urls(style_tag.string, self.base_url, css_local_path='')
         
         # 3. Process scripts
         self.log("📝 Processando scripts...")
@@ -670,7 +777,7 @@ class WebsiteDownloader:
         for elem in soup.find_all(attrs={'style': True}):
             style = elem['style']
             if 'url(' in style:
-                elem['style'] = self._rewrite_css_urls(style, self.base_url)
+                elem['style'] = self._rewrite_css_urls(style, self.base_url, css_local_path='')
         
         # 6. Process favicons and other link tags with URLs
         for link in soup.find_all('link'):
@@ -798,7 +905,19 @@ class WebsiteDownloader:
         with open(os.path.join(self.output_dir, 'index.html'), 'w', encoding='utf-8') as f:
             f.write(html_output)
         
-        self.log(f"✅ Concluído! {len(self.resource_cache)} assets salvos")
+        # Build a per-folder summary from the resource cache
+        folder_counts: dict[str, int] = {}
+        for rel_path in self.resource_cache.values():
+            parts = rel_path.split('/')       # e.g. ['assets', 'img', 'logo.png']
+            folder = parts[1] if len(parts) >= 3 else 'misc'
+            folder_counts[folder] = folder_counts.get(folder, 0) + 1
+
+        self.log(f"✅ Concluído! {len(self.resource_cache)} assets salvos e organizados:")
+        icons = {'js': '📜', 'css': '🎨', 'img': '🖼️', 'fonts': '🔤', 'media': '🎬', 'data': '📊', 'misc': '📦'}
+        for folder in ('css', 'js', 'img', 'fonts', 'media', 'data', 'misc'):
+            count = folder_counts.get(folder, 0)
+            if count:
+                self.log(f"   {icons.get(folder, '📁')} assets/{folder}/  → {count} arquivo(s)")
         return True
 
     def _scroll_page(self, page):
@@ -878,14 +997,16 @@ class WebsiteDownloader:
                     }}
                 """, current)
                 
-                page.wait_for_timeout(600)
+                # 300 ms is enough for most lazy-loaders to react to the new
+                # viewport position (was 600 ms — halved for speed).
+                page.wait_for_timeout(300)
                 current += viewport_height
                 iteration += 1
-                
+
                 new_height = page.evaluate("Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)")
                 if new_height > total_height:
                     total_height = new_height
-            
+
             # Scroll back to top
             page.evaluate("""
                 () => {
@@ -894,7 +1015,8 @@ class WebsiteDownloader:
                     document.body.scrollTop = 0;
                 }
             """)
-            page.wait_for_timeout(1000)
+            # Short settle time after returning to top (was 1 000 ms)
+            page.wait_for_timeout(500)
         except Exception as e:
             self.log(f"⚠️ Erro no scroll: {e}")
 
