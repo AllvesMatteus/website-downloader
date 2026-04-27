@@ -36,9 +36,9 @@ class WebsiteDownloader:
 
         if os.path.exists(output_dir):
             shutil.rmtree(output_dir)
+        # Only the root output dir is created upfront.
+        # Subdirectories are created lazily in _save_resource.
         os.makedirs(self.assets_dir)
-        for subdir_path in self.subdirs.values():
-            os.makedirs(subdir_path, exist_ok=True)
 
     def log(self, message):
         """Send log message to callback"""
@@ -205,6 +205,7 @@ class WebsiteDownloader:
         )
         filepath = os.path.join(subdir_path, filename)
 
+        os.makedirs(subdir_path, exist_ok=True)  # create only when needed
         with open(filepath, 'wb') as f:
             f.write(content if isinstance(content, bytes) else content.encode('utf-8'))
 
