@@ -44,21 +44,50 @@ class WebsiteDownloader:
         """Send log message to callback"""
         self.log_callback(message)
 
+    # Reliable MIME→extension table (mimetypes.guess_extension varies by OS)
+    _MIME_EXT = {
+        'application/javascript':        '.js',
+        'text/javascript':               '.js',
+        'application/x-javascript':      '.js',
+        'module':                         '.js',
+        'text/css':                      '.css',
+        'text/html':                     '.html',
+        'image/svg+xml':                 '.svg',
+        'image/webp':                    '.webp',
+        'image/jpeg':                    '.jpg',
+        'image/png':                     '.png',
+        'image/gif':                     '.gif',
+        'image/avif':                    '.avif',
+        'image/bmp':                     '.bmp',
+        'image/tiff':                    '.tif',
+        'image/x-icon':                  '.ico',
+        'font/woff2':                    '.woff2',
+        'font/woff':                     '.woff',
+        'font/ttf':                      '.ttf',
+        'font/otf':                      '.otf',
+        'application/font-woff2':        '.woff2',
+        'application/font-woff':         '.woff',
+        'application/x-font-ttf':        '.ttf',
+        'application/json':              '.json',
+        'application/xml':               '.xml',
+        'text/xml':                      '.xml',
+        'text/plain':                    '.txt',
+        'application/octet-stream':      '',
+    }
+
     def _get_extension(self, url, content_type=''):
-        """Get file extension from URL or content-type"""
+        """Get file extension from URL or content-type."""
         parsed = urlparse(url)
-        path = parsed.path
-        _, ext = os.path.splitext(path)
-        
+        _, ext = os.path.splitext(parsed.path)
         if ext and len(ext) <= 6:
             return ext
-        
         if content_type:
-            mime = content_type.split(';')[0].strip()
+            mime = content_type.split(';')[0].strip().lower()
+            if mime in self._MIME_EXT:
+                return self._MIME_EXT[mime]
             guessed = mimetypes.guess_extension(mime)
-            if guessed:
+            if guessed and len(guessed) <= 6:
                 return guessed
-        
         return ''
 
     def _get_asset_subdir(self, url, content_type=''):
@@ -635,18 +664,24 @@ class WebsiteDownloader:
                 self.log("✨ Usando conteúdo extraído do iframe")
             else:
                 html_content = page.content()
-            
+
+            # Pre-download background images visible only via computed styles
+            self._capture_computed_backgrounds(page)
+
             self.log(f"📦 Capturados {len(self.network_resources)} recursos de rede")
-            
+
             browser.close()
         
         # Process HTML
         self.log("🔧 Processando HTML e assets...")
         soup = BeautifulSoup(html_content, 'html.parser')
         
+        # Remove platform-specific security/firewall scripts
+        self._remove_platform_scripts(soup)
+
         # Fix scroll-blocking issues for offline viewing
         self._fix_scroll_blocking(soup)
-        
+
         # Remove any remaining iframes that are wrappers (like Aura preview frames)
         for iframe in soup.find_all('iframe'):
             # Keep only essential iframes (videos, maps, etc.)
@@ -877,11 +912,30 @@ class WebsiteDownloader:
             
             self.log(f"   ✅ Removidos {scripts_removed} scripts e {links_removed} preloads do framework")
         
-        # Save HTML
+        # 11. Post-process: fallback download for any remaining external img/source URLs
+        self.log("🔍 Verificando imagens externas não capturadas...")
+        external_captured = 0
+        for elem in soup.find_all(['img', 'source']):
+            for attr in ['src', 'data-src']:
+                val = elem.get(attr, '')
+                if val and (val.startswith('http') or val.startswith('//')):  
+                    local_path = self._download_fallback(val if not val.startswith('//') else 'https:' + val)
+                    if local_path:
+                        elem[attr] = local_path
+                        external_captured += 1
+        if external_captured:
+            self.log(f"   ✅ {external_captured} imagem(ns) externas capturadas no pós-processamento")
+
+        # Save HTML — ensure DOCTYPE is present for standards mode
         html_output = str(soup)
+        stripped = html_output.lstrip()
+        if not (stripped.lower().startswith('<!doctype')):
+            html_output = '<!DOCTYPE html>\n' + html_output
+            self.log("✅ <!DOCTYPE html> adicionado")
+
         with open(os.path.join(self.output_dir, 'index.html'), 'w', encoding='utf-8') as f:
             f.write(html_output)
-        
+
         # Build a per-folder summary from the resource cache
         folder_counts: dict[str, int] = {}
         for rel_path in self.resource_cache.values():
@@ -896,6 +950,77 @@ class WebsiteDownloader:
             if count:
                 self.log(f"   {icons.get(folder, '📁')} assets/{folder}/  → {count} arquivo(s)")
         return True
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Platform script removal
+    # ─────────────────────────────────────────────────────────────────────────
+    _PLATFORM_SCRIPT_IDS = {
+        'aura-supabase-token-firewall',
+        'aura-referral-tracking',
+        'aura-ga4-start',
+        '__webflow_edge_middleware',
+        'wix-warmup-data',
+        'squarespace-inline-scripts',
+    }
+    _PLATFORM_SCRIPT_PATTERNS = [
+        '__AURA_SUPABASE_FIREWALL__',
+        'patchStorage',
+        '__WEBFLOW_',
+        'webflow.com/api',
+        'wixBiSession',
+        'squarespace-platform',
+    ]
+
+    def _remove_platform_scripts(self, soup):
+        """Remove platform-specific security/firewall/tracking scripts that
+        intercept fetch/XHR/cookies and break offline functionality."""
+        removed = 0
+        for script in soup.find_all('script'):
+            sid = script.get('id', '')
+            src = script.get('src', '') or ''
+            text = script.string or ''
+            if sid in self._PLATFORM_SCRIPT_IDS:
+                script.decompose(); removed += 1; continue
+            if any(p in text for p in self._PLATFORM_SCRIPT_PATTERNS):
+                script.decompose(); removed += 1; continue
+            # Remove scripts whose src/text patches core browser APIs
+            if 'patchFetch' in text or 'patchXHR' in text or 'patchWebSocket' in text:
+                script.decompose(); removed += 1
+        if removed:
+            self.log(f"🔒 Removidos {removed} script(s) de plataforma (firewall/tracking)")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Computed background capture (called while browser is still open)
+    # ─────────────────────────────────────────────────────────────────────────
+    def _capture_computed_backgrounds(self, page):
+        """Find elements whose background-image is only visible in computed styles
+        (set by JS or CSS classes, not in HTML) and pre-download them so the
+        _rewrite_css_urls step can later localise them."""
+        try:
+            bg_urls = page.evaluate("""
+            () => {
+                const urls = new Set();
+                document.querySelectorAll('*').forEach(el => {
+                    const bg = window.getComputedStyle(el).backgroundImage;
+                    if (bg && bg !== 'none') {
+                        const m = bg.match(/url\(["']?([^"'()]+)["']?\)/);
+                        if (m && m[1] && !m[1].startsWith('data:')) urls.add(m[1]);
+                    }
+                });
+                return [...urls];
+            }
+            """)
+            pre = 0
+            for url in (bg_urls or []):
+                if url and not url.startswith('data:'):
+                    abs_url = urljoin(self.base_url, url)
+                    if abs_url not in self.network_resources:
+                        self._download_fallback(abs_url)
+                        pre += 1
+            if pre:
+                self.log(f"🖼️ {pre} background-image(s) pré-capturado(s) via computed styles")
+        except Exception as e:
+            self.log(f"⚠️ Aviso ao capturar computed backgrounds: {e}")
 
     def _force_reveal_animations(self, page):
         """Force JS-driven animations (AOS, GSAP, Framer Motion, ScrollReveal) to
