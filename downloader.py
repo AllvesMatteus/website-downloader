@@ -357,60 +357,36 @@ class WebsiteDownloader:
             opacity: 1 !important;
             visibility: visible !important;
         }
-        
-        /* Force visibility - many sites use JS animations for initial display */
+
+        /* Force visibility of main wrappers */
         body, .wrapper, main, #__next, #app, .page, .content {
             opacity: 1 !important;
             visibility: visible !important;
-            transform: none !important;
         }
-        
-        /* Disable loader/preloader overlays */
-        .loader, .preloader, .loading, [class*="loader"], [class*="preloader"] {
+
+        /* Hide loader/preloader overlays only */
+        .loader, .preloader, .loading,
+        [class*="loader"], [class*="preloader"],
+        #loader, #preloader, #loading, .page-loader, .site-loader {
             display: none !important;
-            opacity: 0 !important;
         }
-        
-        /* Show elements that might be hidden for animation */
-        .word-inner, .char, .line, [data-aos], [data-scroll],
-        .hero-text span, .hero-fade, [class*="hero"] span {
-            opacity: 1 !important;
-            transform: none !important;
-            visibility: visible !important;
-        }
-        
-        /* Reset Tailwind animation utility classes */
-        .translate-y-full, .translate-x-full, .-translate-y-full, .-translate-x-full,
-        .translate-y-1\/2, .-translate-y-1\/2, .translate-y-\[100\%\], .translate-y-\[110\%\] {
-            transform: none !important;
-        }
-        
-        /* Force visibility on common hidden-for-animation patterns */
-        .opacity-0, [class*="opacity-0"] {
-            opacity: 1 !important;
-        }
-        
-        /* Reset scale transforms used for animations */
-        .scale-0, .scale-50, .scale-75 {
-            transform: none !important;
-        }
-        
-        html.lenis, html.lenis-smooth, 
+
+        /* Lenis / Locomotive Scroll containers */
+        html.lenis, html.lenis-smooth,
         body.lenis, body.lenis-smooth,
         .lenis-wrapper, .lenis-content,
         [data-lenis-prevent], [data-scroll-container] {
             overflow: visible !important;
             height: auto !important;
         }
-        
-        /* Fix flex containers that might cut off content */
-        body.flex.items-center,
-        body.flex.justify-center {
+
+        /* Fix body flex centering that clips content */
+        body.flex.items-center, body.flex.justify-center {
             align-items: flex-start !important;
             min-height: 100vh;
             height: auto !important;
         }
-        
+
         /* Ensure main content scrolls */
         main, #__next, #__nuxt, #app, .main-content {
             overflow: visible !important;
@@ -564,12 +540,11 @@ class WebsiteDownloader:
             browser = p.chromium.launch(
                 headless=True,
                 args=[
-                    '--disable-dev-shm-usage',  # Overcome limited resource problems
-                    '--no-sandbox',  # Required for Docker
+                    '--disable-dev-shm-usage',
+                    '--no-sandbox',
                     '--disable-setuid-sandbox',
                     '--disable-gpu',
                     '--disable-extensions',
-                    '--disable-background-networking',
                     '--disable-default-apps',
                     '--disable-sync',
                     '--disable-translate',
@@ -638,10 +613,11 @@ class WebsiteDownloader:
                     page.wait_for_load_state('networkidle', timeout=3000)
                 except Exception:
                     pass
-            
+                self._force_reveal_animations(page)
+
             # Get cookies from browser for fallback downloads
             cookies = context.cookies()
-            
+
             # Setup requests session with browser cookies
             self.session = requests.Session()
             self.session.headers.update({
@@ -652,7 +628,7 @@ class WebsiteDownloader:
             })
             for cookie in cookies:
                 self.session.cookies.set(cookie['name'], cookie['value'], domain=cookie.get('domain', ''))
-            
+
             # Get final HTML - use iframe content if detected
             if is_iframe and iframe_content:
                 html_content = iframe_content
@@ -708,6 +684,7 @@ class WebsiteDownloader:
                     pass
             
             if css_content:
+                css_content = self._inline_css_imports(css_content, abs_url)
                 css_content = self._rewrite_css_urls(css_content, abs_url, css_local_path='assets/css/style.css')
                 local_path = self._save_resource(abs_url, css_content.encode('utf-8'), 'text/css')
                 if local_path:
@@ -919,6 +896,103 @@ class WebsiteDownloader:
             if count:
                 self.log(f"   {icons.get(folder, '📁')} assets/{folder}/  → {count} arquivo(s)")
         return True
+
+    def _force_reveal_animations(self, page):
+        """Force JS-driven animations (AOS, GSAP, Framer Motion, ScrollReveal) to
+        their final visible state so the captured HTML shows fully revealed content.
+        Pure CSS @keyframes are NOT touched — they will play normally offline.
+        """
+        try:
+            page.evaluate("""
+            () => {
+                // ── AOS ──────────────────────────────────────────────────────────
+                document.querySelectorAll('[data-aos]').forEach(el => {
+                    el.classList.add('aos-animate');
+                    el.style.transitionDuration = '0s';
+                    el.style.transitionDelay = '0s';
+                });
+                if (window.AOS) {
+                    try { AOS.refreshHard(); } catch(e) {}
+                }
+
+                // ── GSAP ScrollTrigger ────────────────────────────────────────────
+                if (window.ScrollTrigger) {
+                    try {
+                        ScrollTrigger.getAll().forEach(t => t.progress(1, false));
+                        ScrollTrigger.refresh();
+                    } catch(e) {}
+                }
+
+                // ── WOW.js / Animate.css ──────────────────────────────────────────
+                document.querySelectorAll('.wow').forEach(el => {
+                    el.classList.add('animated');
+                    el.style.animationDelay = '0s';
+                    el.style.visibility = 'visible';
+                });
+
+                // ── Locomotive / Lenis in-view classes ────────────────────────────
+                document.querySelectorAll('[data-scroll], [data-inview], [data-animate], [data-reveal]').forEach(el => {
+                    el.classList.add('is-inview', 'in-view', 'revealed');
+                });
+
+                // ── ScrollReveal ──────────────────────────────────────────────────
+                document.querySelectorAll('[data-sr-id], .sr').forEach(el => {
+                    el.style.visibility = 'visible';
+                    el.style.opacity = '1';
+                });
+
+                // ── Elements stuck with inline opacity:0 / translateY after JS init ──
+                // Only reset elements that STILL have opacity:0 in inline style
+                // (JS set them but IO never fired to reveal them)
+                document.querySelectorAll('[style]').forEach(el => {
+                    const s = el.style;
+                    if (s.opacity === '0') s.opacity = '1';
+                    const t = s.transform || '';
+                    // If element is translated far off-screen, reset transform
+                    if (/translateY\(\s*[5-9]\d{1,3}|translateY\(\s*1\d{3}/.test(t)) {
+                        s.transform = 'none';
+                    }
+                });
+            }
+            """)
+            self.log("✅ Animações forçadas ao estado final (AOS/GSAP/ScrollTrigger/WOW)")
+        except Exception as e:
+            self.log(f"⚠️ Aviso ao revelar animações: {e}")
+
+    def _inline_css_imports(self, css_content, css_url):
+        """Resolve @import rules inside CSS by inlining the imported content.
+        This ensures @keyframes and variables defined in imported files are available offline.
+        Limited to one level of depth to avoid infinite recursion.
+        """
+        import_pattern = re.compile(
+            r'@import\s+(?:url\()?\s*["\']?([^"\'\);\s]+)["\']?\s*\)?[^;]*;',
+            re.IGNORECASE
+        )
+
+        def replace_import(match):
+            original  = match.group(0)
+            import_url = match.group(1).strip()
+            if import_url.startswith('data:'):
+                return original
+            abs_url = urljoin(css_url, import_url)
+            imported = None
+            if abs_url in self.network_resources:
+                try:
+                    imported = self.network_resources[abs_url]['body'].decode('utf-8', errors='ignore')
+                except Exception:
+                    pass
+            if not imported and self.session:
+                try:
+                    r = self.session.get(abs_url, timeout=10, verify=False)
+                    if r.status_code == 200:
+                        imported = r.text
+                except Exception:
+                    pass
+            if imported:
+                return f"/* inlined: {abs_url} */\n{imported}\n"
+            return original
+
+        return import_pattern.sub(replace_import, css_content)
 
     def _scroll_page(self, page):
         """Scroll the page to trigger lazy loading"""
