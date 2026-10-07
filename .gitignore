@@ -15,6 +15,9 @@ env/
 downloads/*
 !downloads/.gitkeep
 
+# Temporary example downloads for analysis
+docs/example/
+
 # IDE
 .vscode/
 .idea/
